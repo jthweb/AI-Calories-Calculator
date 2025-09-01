@@ -1,0 +1,5 @@
+streamlit
+google-generativeai
+openai
+Pillow
+streamlit-local-storage

@@ -6,7 +6,7 @@ import io
 import openai
 from streamlit_local_storage import LocalStorage
 
-st.set_page_config(page_title="JThweb Calories AI", layout="centered")
+st.set_page_config(page_title="AI Calories Calculator", layout="centered")
 
 st.markdown("""
     <style>
@@ -28,7 +28,7 @@ st.markdown("""
 # --- Sidebar ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1046/1046784.png", width=80)
-    st.title("JThweb Calories AI")
+    st.title("AI Calories Calculator")
 
     try:
         localS = LocalStorage()
@@ -320,7 +320,7 @@ Present the results in a clean, readable markdown table with columns: Item, Calo
 
 After the table, add a very brief summary (1-2 lines max) with key health points or suggestions if needed.
 
-End with: _JThweb AI Calories Calculator – For demonstration only._
+End with: _AI Calories Calculator – AI can make mistakes. Please verify information before making conclusions._
 """
 
 # --- Main Logic ---

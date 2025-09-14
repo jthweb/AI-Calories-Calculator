@@ -1,39 +1,36 @@
 import streamlit as st
-import os
-import google.generativeai as genai
-from PIL import Image
-import io
-import openai
-from streamlit_local_storage import LocalStorage
-
-st.set_page_config(page_title="AI Calories Calculator", layout="centered")
 
 st.markdown("""
-    <style>
-    section[data-testid="stSidebar"] {
-        min-width: 350px;
-        width: 350px;
-        max-width: 420px;
-    }
-    @media (max-width: 600px) {
-        section[data-testid="stSidebar"] {
-            min-width: 100vw;
-            width: 100vw;
-            max-width: 100vw;
-        }
-    }
-    </style>
-""", unsafe_allow_html=True)
+# 🍽️ AI Calories Calculator - Dashboard Version
 
-# --- Sidebar ---
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1046/1046784.png", width=80)
-    st.title("AI Calories Calculator")
+The AI Calories Calculator has been upgraded to a full dashboard experience!
 
-    try:
-        localS = LocalStorage()
-    except Exception as e:
-        # This might happen in environments where JS is not available
+## ✨ New Features:
+- 🔐 **User Authentication** - Secure sign up/sign in
+- 📊 **Interactive Dashboard** - Track your nutrition progress with charts
+- 🎯 **Daily Goals** - Set and track your nutrition targets  
+- 📱 **Mobile Responsive** - Optimized for all devices
+- 🤖 **Enhanced AI Analysis** - Using Gemini 2.5 Flash for better accuracy
+- 💾 **Data Persistence** - Your meals are saved and tracked over time
+
+## 🚀 Getting Started:
+Run the new dashboard app with:
+```bash
+streamlit run app.py
+```
+
+## 📋 Requirements:
+- MySQL database (configure in .env file)
+- Gemini API key (provided during sign-up)
+
+---
+*Original single-page calculator preserved below for reference*
+""")
+
+st.info("The dashboard version is now available in `app.py`. Run it to experience the full tracking features!")
+
+st.markdown("---")
+st.subheader("Original Calculator (Legacy)")
         st.warning("Could not initialize browser storage. API key will not be saved.")
         localS = None
 

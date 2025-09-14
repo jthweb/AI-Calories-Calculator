@@ -1,5 +1,8 @@
 streamlit
 google-generativeai
-openai
 Pillow
 streamlit-local-storage
+mysql-connector-python
+python-dotenv
+plotly
+pandas

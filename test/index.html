@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Calorie Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Toast notification styles */
+        #toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 9999px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: bottom 0.5s ease-in-out, background-color 0.3s;
+            z-index: 50;
+        }
+        #toast.show {
+            bottom: 80px; /* Position above the nav bar */
+        }
+        #toast.success { background-color: #28a745; }
+        #toast.error { background-color: #dc3545; }
+
+        /* View transition animations */
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .view.hidden {
+            opacity: 0;
+            transform: translateX(100%);
+            pointer-events: none;
+        }
+        .view.hidden-left {
+            opacity: 0;
+            transform: translateX(-100%);
+            pointer-events: none;
+        }
+
+        /* Bottom Nav Bar Active State */
+        #bottom-nav .nav-btn.active svg {
+            color: #4f46e5; /* indigo-600 */
+        }
+        #bottom-nav .nav-btn.active .nav-text {
+            color: #4f46e5; /* indigo-600 */
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen">
+
+        <!-- Auth Screen (Login / Signup) -->
+        <div id="auth-screen" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <!-- ... auth screen content from previous version, no changes needed ... -->
+            <div class="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg">
+                <div class="text-center mb-8">
+                    <svg class="mx-auto h-12 w-auto text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 3h.008v.008H8.25v-.008Zm0 3h.008v.008H8.25v-.008Zm3.75 0h.008v.008h-.008v-.008Zm0-3h.008v.008h-.008v-.008Zm0-3h.008v.008h-.008v-.008Zm3.75 0h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm-7.5-6.75h.008v.008H8.25v-.008Zm-.75-4.5h13.5A2.25 2.25 0 0 1 21 6.75v10.5A2.25 2.25 0 0 1 18.75 19.5H5.25A2.25 2.25 0 0 1 3 17.25V6.75A2.25 2.25 0 0 1 5.25 4.5Z" />
+                    </svg>
+                    <h2 id="auth-title" class="mt-4 text-3xl font-bold tracking-tight text-gray-900">Sign in to your account</h2>
+                </div>
+                
+                <form id="auth-form" class="space-y-6">
+                    <div id="name-field" class="hidden">
+                        <label for="name" class="block text-sm font-medium leading-6 text-gray-900">Your Name</label>
+                        <div class="mt-2">
+                            <input id="name" name="name" type="text" autocomplete="name" class="block w-full rounded-md border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium leading-6 text-gray-900">Email address</label>
+                        <div class="mt-2">
+                            <input id="email" name="email" type="email" autocomplete="email" required class="block w-full rounded-md border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium leading-6 text-gray-900">Password</label>
+                        <div class="mt-2">
+                            <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full rounded-md border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+                     <div id="api-key-field" class="hidden">
+                        <label for="api-key" class="block text-sm font-medium leading-6 text-gray-900">Gemini API Key</label>
+                        <div class="mt-2">
+                            <input id="api-key" name="apiKey" type="password" class="block w-full rounded-md border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" id="auth-submit-button" class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-transform transform hover:scale-105">Sign in</button>
+                    </div>
+                </form>
+                <p id="auth-error" class="mt-4 text-center text-sm text-red-500"></p>
+                <p class="mt-6 text-center text-sm text-gray-500">
+                    <span id="auth-prompt-text">Not a member?</span>
+                    <a href="#" id="auth-toggle-link" class="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">Create an account</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboard-screen" class="hidden w-full h-screen flex flex-col">
+            <main id="view-container" class="flex-grow w-full relative overflow-y-auto pb-24">
+                
+                <!-- Dashboard/Home View -->
+                <div id="view-dashboard" class="view p-4 sm:p-6 lg:p-8 space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-bold mb-1">Welcome back, <span id="user-name"></span>!</h2>
+                        <p class="text-slate-500">Summary for <span id="current-date"></span>.</p>
+                    </header>
+                    <div id="calorie-goal-card" class="bg-white p-6 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-lg mb-2">Set Your Daily Calorie Goal</h3>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <input type="number" id="calorie-goal-input" placeholder="e.g., 2200" class="flex-grow block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600">
+                            <button id="set-goal-button" class="rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-transform transform hover:scale-105">Set Goal</button>
+                        </div>
+                    </div>
+                    <div id="calorie-summary-card" class="hidden bg-white p-6 rounded-2xl shadow-sm space-y-4">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="font-bold text-lg">Today's Progress</h3>
+                            <p class="text-sm text-slate-500">Goal: <span id="goal-display">0</span> kcal</p>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4"><div id="progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div></div>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div><p class="font-bold text-2xl text-indigo-600" id="consumed-calories">0</p><p class="text-sm text-slate-500">Consumed</p></div>
+                            <div><p class="font-bold text-2xl text-green-600" id="remaining-calories">0</p><p class="text-sm text-slate-500">Remaining</p></div>
+                            <div><p class="font-bold text-2xl text-red-500 hidden" id="over-calories">0</p><p class="text-sm text-slate-500">Over Limit</p></div>
+                        </div>
+                        <p id="calorie-alert" class="text-center text-sm font-medium"></p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-lg mb-4">Today's Log</h3>
+                        <div id="daily-log-container" class="space-y-4"></div>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-sm">
+                        <h3 class="font-bold text-lg mb-4">Calorie Breakdown</h3>
+                        <div class="h-64 flex items-center justify-center relative"><canvas id="calorie-pie-chart"></canvas><p id="chart-placeholder" class="text-slate-400 absolute">Log meals to see chart</p></div>
+                    </div>
+                </div>
+
+                <!-- Add Meal View -->
+                <div id="view-add-meal" class="view hidden p-4 sm:p-6 lg:p-8 space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-bold">Add a Meal</h2>
+                        <p class="text-slate-500">Choose a meal type to log your food.</p>
+                    </header>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button data-meal-type="Breakfast" class="add-meal-btn flex flex-col items-center justify-center p-6 bg-white shadow-sm rounded-2xl hover:bg-indigo-50 transition-transform transform hover:scale-105"><span class="text-4xl">🍳</span><span class="font-semibold text-md mt-2">Breakfast</span></button>
+                        <button data-meal-type="Lunch" class="add-meal-btn flex flex-col items-center justify-center p-6 bg-white shadow-sm rounded-2xl hover:bg-indigo-50 transition-transform transform hover:scale-105"><span class="text-4xl">🥗</span><span class="font-semibold text-md mt-2">Lunch</span></button>
+                        <button data-meal-type="Dinner" class="add-meal-btn flex flex-col items-center justify-center p-6 bg-white shadow-sm rounded-2xl hover:bg-indigo-50 transition-transform transform hover:scale-105"><span class="text-4xl">🍝</span><span class="font-semibold text-md mt-2">Dinner</span></button>
+                        <button data-meal-type="Snacks" class="add-meal-btn flex flex-col items-center justify-center p-6 bg-white shadow-sm rounded-2xl hover:bg-indigo-50 transition-transform transform hover:scale-105"><span class="text-4xl">🍎</span><span class="font-semibold text-md mt-2">Snacks</span></button>
+                    </div>
+                </div>
+
+                <!-- AI Suggestion View -->
+                <div id="view-ai-suggest" class="view hidden p-4 sm:p-6 lg:p-8 space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-bold">AI Meal Suggestions</h2>
+                        <p class="text-slate-500">Get smart recommendations based on your goals.</p>
+                    </header>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm">
+                        <p class="text-sm text-slate-600 mb-4">Click the button to get AI-powered ideas for your next healthy meal based on your remaining calories.</p>
+                        <button id="get-suggestion-btn" class="w-full rounded-md bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-transform transform hover:scale-105">✨ Get Suggestion</button>
+                        <div id="suggestion-container" class="mt-4 text-sm text-slate-700 p-4 bg-slate-50 rounded-lg hidden prose"></div>
+                    </div>
+                </div>
+
+                <!-- Account View -->
+                <div id="view-account" class="view hidden p-4 sm:p-6 lg:p-8 space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-bold">Account Settings</h2>
+                        <p class="text-slate-500">Manage your profile and settings.</p>
+                    </header>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm space-y-4">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">Name</p>
+                            <p id="account-name" class="font-semibold"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">Email</p>
+                            <p id="account-email" class="font-semibold"></p>
+                        </div>
+                         <button id="logout-button" class="w-full rounded-md bg-red-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-600 transition-transform transform hover:scale-105">Logout</button>
+                    </div>
+                </div>
+
+            </main>
+            
+            <!-- Bottom Navigation Bar -->
+            <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around h-16 shadow-lg">
+                <button data-view="dashboard" class="nav-btn active flex flex-col items-center justify-center w-full text-gray-500 hover:bg-indigo-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                    <span class="text-xs nav-text">Dashboard</span>
+                </button>
+                <button data-view="add-meal" class="nav-btn flex flex-col items-center justify-center w-full text-gray-500 hover:bg-indigo-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span class="text-xs nav-text">Add Meal</span>
+                </button>
+                <button data-view="ai-suggest" class="nav-btn flex flex-col items-center justify-center w-full text-gray-500 hover:bg-indigo-50 transition-colors">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                    <span class="text-xs nav-text">AI Suggest</span>
+                </button>
+                <button data-view="account" class="nav-btn flex flex-col items-center justify-center w-full text-gray-500 hover:bg-indigo-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <span class="text-xs nav-text">Account</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Add Meal Modal -->
+    <div id="add-meal-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-20">
+        <!-- ... modal content from previous version, no changes needed ... -->
+         <div class="relative top-10 sm:top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-2xl bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">Add Meal</h3>
+                <div class="mt-4 px-2 sm:px-7 py-3">
+                    <p class="text-sm text-gray-500 mb-4">Upload a photo of your meal for analysis.</p>
+                    <input type="file" id="meal-image-upload" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                    <img id="image-preview" src="" class="hidden mt-4 rounded-lg max-h-60 mx-auto"/>
+                    <div id="analysis-loader" class="hidden loader mx-auto my-8"></div>
+                    <div id="analysis-result" class="hidden text-left mt-4"></div>
+                    <p id="modal-error" class="text-red-500 text-sm mt-2"></p>
+                </div>
+                <div class="items-center px-4 py-3 space-x-4">
+                    <button id="confirm-add-meal-btn" class="hidden px-4 py-2 bg-indigo-600 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">Add to Log</button>
+                    <button id="close-modal-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <script>
+        // --- DOM Elements ---
+        const authScreen = document.getElementById('auth-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        const authForm = document.getElementById('auth-form');
+        const authTitle = document.getElementById('auth-title');
+        const authSubmitButton = document.getElementById('auth-submit-button');
+        const authPromptText = document.getElementById('auth-prompt-text');
+        const authToggleLink = document.getElementById('auth-toggle-link');
+        const authError = document.getElementById('auth-error');
+        const nameField = document.getElementById('name-field');
+        const apiKeyField = document.getElementById('api-key-field');
+        const userNameEl = document.getElementById('user-name');
+        const currentDateEl = document.getElementById('current-date');
+        const calorieGoalCard = document.getElementById('calorie-goal-card');
+        const calorieSummaryCard = document.getElementById('calorie-summary-card');
+        const calorieGoalInput = document.getElementById('calorie-goal-input');
+        const setGoalButton = document.getElementById('set-goal-button');
+        const goalDisplay = document.getElementById('goal-display');
+        const progressBar = document.getElementById('progress-bar');
+        const consumedCaloriesEl = document.getElementById('consumed-calories');
+        const remainingCaloriesEl = document.getElementById('remaining-calories');
+        const overCaloriesEl = document.getElementById('over-calories');
+        const calorieAlert = document.getElementById('calorie-alert');
+        const addMealModal = document.getElementById('add-meal-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalTitle = document.getElementById('modal-title');
+        const mealImageUpload = document.getElementById('meal-image-upload');
+        const imagePreview = document.getElementById('image-preview');
+        const analysisLoader = document.getElementById('analysis-loader');
+        const analysisResultEl = document.getElementById('analysis-result');
+        const modalError = document.getElementById('modal-error');
+        const confirmAddMealBtn = document.getElementById('confirm-add-meal-btn');
+        const dailyLogContainer = document.getElementById('daily-log-container');
+        const pieChartCanvas = document.getElementById('calorie-pie-chart').getContext('2d');
+        const chartPlaceholder = document.getElementById('chart-placeholder');
+        const getSuggestionBtn = document.getElementById('get-suggestion-btn');
+        const suggestionContainer = document.getElementById('suggestion-container');
+        const toastEl = document.getElementById('toast');
+        const bottomNav = document.getElementById('bottom-nav');
+        const navButtons = document.querySelectorAll('.nav-btn');
+        const views = document.querySelectorAll('.view');
+        const accountNameEl = document.getElementById('account-name');
+        const accountEmailEl = document.getElementById('account-email');
+        const logoutButton = document.getElementById('logout-button');
+
+        let isLogin = true;
+        let currentUser = null; // Will be { name, email }
+        let currentMealType = '';
+        let currentMealData = null;
+        let caloriePieChart = null;
+        let activeView = 'dashboard';
+
+        // --- Toast Notification Logic ---
+        function showToast(message, type = 'success') {
+            toastEl.textContent = message;
+            toastEl.className = type; // 'success' or 'error'
+            toastEl.classList.add('show');
+            setTimeout(() => {
+                toastEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- Auth Logic (from previous version, no changes needed) ---
+        function toggleAuthMode() {
+            isLogin = !isLogin;
+            authTitle.textContent = isLogin ? 'Sign in to your account' : 'Create a new account';
+            authSubmitButton.textContent = isLogin ? 'Sign in' : 'Create account';
+            authPromptText.textContent = isLogin ? 'Not a member?' : 'Already have an account?';
+            authToggleLink.textContent = isLogin ? 'Create an account' : 'Sign in';
+            nameField.classList.toggle('hidden', isLogin);
+            apiKeyField.classList.toggle('hidden', isLogin);
+            authError.textContent = '';
+            authForm.reset();
+        }
+
+        authToggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleAuthMode();
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(authForm);
+            const data = Object.fromEntries(formData.entries());
+            authError.textContent = '';
+
+            const endpoint = isLogin ? '/login' : '/signup';
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'An unknown error occurred.');
+                
+                if (isLogin) {
+                    currentUser = { name: result.name, email: result.email };
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showDashboard();
+                } else {
+                    showToast('Account created! Please sign in.', 'success');
+                    toggleAuthMode();
+                }
+            } catch (error) {
+                authError.textContent = error.message;
+            }
+        });
+
+        logoutButton.addEventListener('click', () => {
+            currentUser = null;
+            sessionStorage.removeItem('currentUser');
+            showAuthScreen();
+        });
+        
+        function showDashboard() {
+            authScreen.classList.add('hidden');
+            dashboardScreen.classList.remove('hidden');
+            setupDashboard();
+        }
+
+        function showAuthScreen() {
+            dashboardScreen.classList.add('hidden');
+            authScreen.classList.remove('hidden');
+        }
+
+        // --- Navigation Logic ---
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const viewName = button.dataset.view;
+                switchView(viewName);
+            });
+        });
+
+        function switchView(viewName) {
+            const currentActiveView = document.getElementById(`view-${activeView}`);
+            const nextActiveView = document.getElementById(`view-${viewName}`);
+            
+            // Determine animation direction
+            const currentIdx = Array.from(navButtons).findIndex(btn => btn.dataset.view === activeView);
+            const nextIdx = Array.from(navButtons).findIndex(btn => btn.dataset.view === viewName);
+
+            if (currentActiveView && nextActiveView) {
+                 if (currentIdx < nextIdx) {
+                    currentActiveView.classList.add('hidden-left');
+                    currentActiveView.classList.remove('hidden');
+                } else {
+                    currentActiveView.classList.add('hidden');
+                    currentActiveView.classList.remove('hidden-left');
+                }
+
+                nextActiveView.classList.remove('hidden', 'hidden-left');
+            }
+            
+            activeView = viewName;
+
+            // Update nav button active state
+            navButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewName);
+            });
+            
+            // Trigger actions for specific views
+            if(viewName === 'dashboard') fetchAndUpdateDailyLog();
+            if(viewName === 'account') updateAccountView();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUser = sessionStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showDashboard();
+            } else {
+                showAuthScreen();
+            }
+            // Set initial view
+            switchView('dashboard');
+        });
+
+        // --- Dashboard & Data Logic (adapted from previous version) ---
+        function getTodayDateString() { return new Date().toISOString().split('T')[0]; }
+
+        async function setupDashboard() {
+            if (!currentUser) return;
+            userNameEl.textContent = currentUser.name;
+            const today = new Date();
+            currentDateEl.textContent = today.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            await fetchAndUpdateDailyLog();
+        }
+        
+        async function fetchAndUpdateDailyLog() {
+            if (!currentUser) return;
+            const dateStr = getTodayDateString();
+            try {
+                const response = await fetch(`/daily-log/${currentUser.email}/${dateStr}`);
+                if(!response.ok) throw new Error("Could not load data.");
+                const data = await response.json();
+                updateDashboardUI(data);
+            } catch (error) {
+                showToast(error.message, "error");
+            }
+        }
+        
+        setGoalButton.addEventListener('click', async () => {
+            const goal = parseInt(calorieGoalInput.value);
+            if (goal > 0 && currentUser) {
+                 const dateStr = getTodayDateString();
+                 await fetch(`/daily-log/${currentUser.email}/${dateStr}/goal`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ goal })
+                 });
+                 showToast("Calorie goal updated!", "success");
+                 fetchAndUpdateDailyLog();
+            } else {
+                showToast("Please enter a valid goal.", "error");
+            }
+        });
+
+        function updateDashboardUI(data) {
+            // This function remains largely the same as the previous version
+            if (data.calorieGoal > 0) {
+                calorieGoalCard.classList.add('hidden');
+                calorieSummaryCard.classList.remove('hidden');
+                goalDisplay.textContent = data.calorieGoal;
+                consumedCaloriesEl.textContent = data.totalCalories || 0;
+                
+                const remaining = data.calorieGoal - (data.totalCalories || 0);
+                const progressPercent = Math.min(100, ((data.totalCalories || 0) / data.calorieGoal) * 100);
+                progressBar.style.width = `${progressPercent}%`;
+
+                if (remaining >= 0) {
+                    remainingCaloriesEl.textContent = remaining;
+                    overCaloriesEl.classList.add('hidden');
+                    remainingCaloriesEl.parentElement.classList.remove('hidden');
+                    progressBar.classList.remove('bg-red-500');
+                    progressBar.classList.add('bg-green-500');
+                    calorieAlert.textContent = "You're on track. Keep it up!";
+                    calorieAlert.className = "text-center text-sm font-medium text-green-600";
+                } else {
+                    remainingCaloriesEl.parentElement.classList.add('hidden');
+                    overCaloriesEl.textContent = Math.abs(remaining);
+                    overCaloriesEl.classList.remove('hidden');
+                    progressBar.style.width = '100%';
+                    progressBar.classList.remove('bg-green-500');
+                    progressBar.classList.add('bg-red-500');
+                    calorieAlert.textContent = `You've exceeded your goal by ${Math.abs(remaining)} kcal.`;
+                    calorieAlert.className = "text-center text-sm font-medium text-red-600";
+                }
+
+            } else {
+                calorieGoalCard.classList.remove('hidden');
+                calorieSummaryCard.classList.add('hidden');
+            }
+
+            dailyLogContainer.innerHTML = '';
+            if (data.meals && data.meals.length > 0) {
+                data.meals.forEach(meal => {
+                    const mealEl = document.createElement('div');
+                    mealEl.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-lg';
+                    mealEl.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${meal.mealType}</p>
+                            <p class="text-sm text-slate-500">${meal.foodItems.map(i => i.item).join(', ')}</p>
+                        </div>
+                        <p class="font-bold text-indigo-600">${meal.totalMealCalories} kcal</p>
+                    `;
+                    dailyLogContainer.appendChild(mealEl);
+                });
+            } else {
+                dailyLogContainer.innerHTML = `<p class="text-center text-slate-400 py-8">Log your first meal to see it here!</p>`;
+            }
+            
+            updatePieChart(data.meals || []);
+        }
+
+        function updatePieChart(meals) {
+             if (caloriePieChart) caloriePieChart.destroy();
+            
+            if (meals.length === 0) {
+                chartPlaceholder.classList.remove('hidden');
+                pieChartCanvas.canvas.classList.add('hidden');
+                return;
+            }
+            
+            chartPlaceholder.classList.add('hidden');
+            pieChartCanvas.canvas.classList.remove('hidden');
+
+            const mealTypes = { Breakfast: 0, Lunch: 0, Dinner: 0, Snacks: 0 };
+            meals.forEach(meal => {
+                if (mealTypes.hasOwnProperty(meal.mealType)) {
+                    mealTypes[meal.mealType] += meal.totalMealCalories;
+                }
+            });
+
+            const labels = Object.keys(mealTypes).filter(type => mealTypes[type] > 0);
+            const data = Object.values(mealTypes).filter(val => val > 0);
+
+            caloriePieChart = new Chart(pieChartCanvas, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{ data, backgroundColor: ['#818cf8', '#60a5fa', '#38bdf8', '#fbbf24'], borderColor: '#fff', borderWidth: 2 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw} kcal` } } }
+                }
+            });
+        }
+        
+        function updateAccountView() {
+            if(currentUser) {
+                accountNameEl.textContent = currentUser.name;
+                accountEmailEl.textContent = currentUser.email;
+            }
+        }
+
+        // --- Meal Logging & AI Logic (adapted from previous version) ---
+        document.querySelectorAll('.add-meal-btn').forEach(btn => btn.addEventListener('click', () => {
+            currentMealType = btn.dataset.mealType;
+            modalTitle.textContent = `Add ${currentMealType}`;
+            resetModal();
+            addMealModal.classList.remove('hidden');
+        }));
+
+        closeModalBtn.addEventListener('click', () => addMealModal.classList.add('hidden'));
+
+        function resetModal() {
+            mealImageUpload.value = '';
+            imagePreview.classList.add('hidden');
+            analysisLoader.classList.add('hidden');
+            analysisResultEl.classList.add('hidden');
+            confirmAddMealBtn.classList.add('hidden');
+            modalError.textContent = '';
+            currentMealData = null;
+        }
+
+        mealImageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.classList.remove('hidden');
+            analysisLoader.classList.remove('hidden');
+            analysisResultEl.classList.add('hidden');
+            confirmAddMealBtn.classList.add('hidden');
+            modalError.textContent = '';
+            
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = async () => {
+                const base64data = reader.result.split(',')[1];
+                try {
+                    const response = await fetch('/analyze-meal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: currentUser.email, image: base64data, mimeType: file.type })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error);
+                    
+                    currentMealData = result;
+                    displayAnalysisResult(result);
+                } catch(error) {
+                    modalError.textContent = `Analysis Error: ${error.message}`;
+                    analysisLoader.classList.add('hidden');
+                }
+            };
+        });
+        
+        function displayAnalysisResult(data) {
+            analysisLoader.classList.add('hidden');
+            let tableHtml = `<p class="font-bold text-lg mb-2">Total Calories: ${data.totalCalories} kcal</p><table class="w-full text-sm text-left"><thead class="text-xs text-gray-700 uppercase bg-gray-50"><tr><th class="px-2 py-2">Item</th><th class="px-2 py-2">Calories</th></tr></thead><tbody>`;
+            data.foodItems.forEach(item => { tableHtml += `<tr class="bg-white border-b"><td class="px-2 py-2 font-medium text-gray-900">${item.item}</td><td class="px-2 py-2">${item.calories}</td></tr>`; });
+            tableHtml += `</tbody></table>`;
+            analysisResultEl.innerHTML = tableHtml;
+            analysisResultEl.classList.remove('hidden');
+            confirmAddMealBtn.classList.remove('hidden');
+        }
+
+        confirmAddMealBtn.addEventListener('click', async () => {
+            if (!currentMealData || !currentUser) return;
+            const mealLog = { mealType: currentMealType, totalMealCalories: currentMealData.totalCalories, foodItems: currentMealData.foodItems, timestamp: new Date().toISOString() };
+            const dateStr = getTodayDateString();
+            try {
+                await fetch(`/daily-log/${currentUser.email}/${dateStr}/meal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mealLog)
+                });
+                addMealModal.classList.add('hidden');
+                showToast("Meal added successfully!", "success");
+                fetchAndUpdateDailyLog();
+                switchView('dashboard'); // Switch back to dashboard after adding a meal
+            } catch (error) {
+                modalError.textContent = "Could not save meal. Please try again.";
+            }
+        });
+        
+        getSuggestionBtn.addEventListener('click', async () => {
+            suggestionContainer.innerHTML = '<div class="loader mx-auto"></div>';
+            suggestionContainer.classList.remove('hidden');
+
+            const dateStr = getTodayDateString();
+            try {
+                const logResponse = await fetch(`/daily-log/${currentUser.email}/${dateStr}`);
+                const logData = await logResponse.json();
+
+                const response = await fetch('/get-suggestion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentUser.email, log: logData })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error);
+                suggestionContainer.innerHTML = result.suggestion.replace(/\n/g, '<br>');
+            } catch (error) {
+                suggestionContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
+
